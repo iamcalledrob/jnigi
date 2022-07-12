@@ -119,7 +119,6 @@ type jobj interface {
 	jobj() jobject
 }
 
-
 // CastedObjectRef represents an object reference casted to a super class.
 // This is used to create method signatures for generic classes.
 type CastedObjectRef struct {
@@ -173,6 +172,9 @@ type JVMInitArgs struct {
 
 // CreateJVM calls JNI CreateJavaVM and returns references to the JVM and the initial environment.
 // Use NewJVMInitArgs to create jvmInitArgs.
+//
+// On Android, call AndroidJVM to return references to the Android Application's JVM instead.
+//
 // Must call runtime.LockOSThread() first.
 func CreateJVM(jvmInitArgs *JVMInitArgs) (*JVM, *Env, error) {
 	p := malloc(unsafe.Sizeof((unsafe.Pointer)(nil)))
@@ -1119,7 +1121,7 @@ func (o *ObjectRef) getClass(env *Env) (class jclass, err error) {
 		}
 		defer env.DeleteLocalRef(strObj)
 		var b []byte
-		if err := strObj.CallMethod(env, "getBytes", &b,  env.GetUTF8String()); err != nil {
+		if err := strObj.CallMethod(env, "getBytes", &b, env.GetUTF8String()); err != nil {
 			return 0, err
 		}
 		gotClass := string(b)
@@ -1139,7 +1141,8 @@ func (o *ObjectRef) getClass(env *Env) (class jclass, err error) {
 }
 
 // CallMethod calls method methodName on o with arguments args and stores return value in dest.
-func (o *ObjectRef) CallMethod(env *Env, methodName string, dest interface{}, args ...interface{}) error {
+func (o *ObjectRef) CallMethod(env *Env, methodName string, dest interface{},
+	args ...interface{}) error {
 	rType, rClassName, err := typeOfReturnValue(dest)
 	if err != nil {
 		return err
@@ -1165,10 +1168,10 @@ func (o *ObjectRef) CallMethod(env *Env, methodName string, dest interface{}, ar
 		return assignDest(retVal, dest)
 	}
 
-
 }
 
-func (o *ObjectRef) genericCallMethod(env *Env, methodName string, rType Type, rClassName string, args ...interface{}) (interface{}, error) {
+func (o *ObjectRef) genericCallMethod(env *Env, methodName string, rType Type, rClassName string,
+	args ...interface{}) (interface{}, error) {
 	class, err := o.getClass(env)
 	if err != nil {
 		return nil, err
@@ -1242,13 +1245,15 @@ func (o *ObjectRef) genericCallMethod(env *Env, methodName string, rType Type, r
 }
 
 // CallNonvirtualMethod calls non virtual method methodName on o with arguments args and stores return value in dest.
-func (o *ObjectRef) CallNonvirtualMethod(env *Env, className string, methodName string, dest interface{}, args ...interface{}) error {
+func (o *ObjectRef) CallNonvirtualMethod(env *Env, className string, methodName string,
+	dest interface{}, args ...interface{}) error {
 	rType, rClassName, err := typeOfReturnValue(dest)
 	if err != nil {
 		return err
 	}
 
-	retVal, err := o.genericCallNonvirtualMethod(env, className, methodName, rType, rClassName, args...)
+	retVal, err := o.genericCallNonvirtualMethod(env, className, methodName, rType, rClassName,
+		args...)
 	if err != nil {
 		return err
 	}
@@ -1269,7 +1274,8 @@ func (o *ObjectRef) CallNonvirtualMethod(env *Env, className string, methodName 
 	}
 }
 
-func (o *ObjectRef) genericCallNonvirtualMethod(env *Env, className string, methodName string, rType Type, rClassName string, args ...interface{}) (interface{}, error) {
+func (o *ObjectRef) genericCallNonvirtualMethod(env *Env, className string, methodName string,
+	rType Type, rClassName string, args ...interface{}) (interface{}, error) {
 	class, err := env.callFindClass(className)
 	if err != nil {
 		return nil, err
@@ -1343,7 +1349,8 @@ func (o *ObjectRef) genericCallNonvirtualMethod(env *Env, className string, meth
 }
 
 // CallStaticMethod calls static method methodName in class className with arguments args and stores return value in dest.
-func (j *Env) CallStaticMethod(className string, methodName string, dest interface{}, args ...interface{}) error {
+func (j *Env) CallStaticMethod(className string, methodName string, dest interface{},
+	args ...interface{}) error {
 	rType, rClassName, err := typeOfReturnValue(dest)
 	if err != nil {
 		return err
@@ -1370,7 +1377,8 @@ func (j *Env) CallStaticMethod(className string, methodName string, dest interfa
 	}
 }
 
-func (j *Env) genericCallStaticMethod(className string, methodName string, rType Type, rClassName string, args ...interface{}) (interface{}, error) {
+func (j *Env) genericCallStaticMethod(className string, methodName string, rType Type,
+	rClassName string, args ...interface{}) (interface{}, error) {
 	class, err := j.callFindClass(className)
 	if err != nil {
 		return nil, err
@@ -1491,7 +1499,8 @@ func (o *ObjectRef) GetField(env *Env, fieldName string, dest interface{}) error
 	}
 }
 
-func (o *ObjectRef) genericGetField(env *Env, fieldName string, fType Type, fClassName string) (interface{}, error) {
+func (o *ObjectRef) genericGetField(env *Env, fieldName string, fType Type,
+	fClassName string) (interface{}, error) {
 	class, err := o.getClass(env)
 	if err != nil {
 		return nil, err
@@ -1635,7 +1644,8 @@ func (j *Env) GetStaticField(className string, fieldName string, dest interface{
 	}
 }
 
-func (j *Env) genericGetStaticField(className string, fieldName string, fType Type, fClassName string) (interface{}, error) {
+func (j *Env) genericGetStaticField(className string, fieldName string, fType Type,
+	fClassName string) (interface{}, error) {
 	class, err := j.callFindClass(className)
 	if err != nil {
 		return nil, err
@@ -1753,7 +1763,8 @@ func (j *Env) SetStaticField(className string, fieldName string, value interface
 
 // RegisterNative calls JNI RegisterNative for class className, method methodName with return type returnType and parameters params,
 // fptr is used as native function.
-func (j *Env) RegisterNative(className, methodName string, returnType TypeSpec, params []interface{}, fptr interface{}) error {
+func (j *Env) RegisterNative(className, methodName string, returnType TypeSpec,
+	params []interface{}, fptr interface{}) error {
 	class, err := j.callFindClass(className)
 	if err != nil {
 		return err
@@ -1907,7 +1918,8 @@ func stringFromJavaLangString(env *Env, ref *ObjectRef) string {
 	return string(ret)
 }
 
-func callStringMethodAndAssign(env *Env, obj *ObjectRef, method string, assign func(s string)) error {
+func callStringMethodAndAssign(env *Env, obj *ObjectRef, method string,
+	assign func(s string)) error {
 	env.PrecalculateSignature("()Ljava/lang/String;")
 	strref := NewObjectRef("java/lang/String")
 	err := obj.CallMethod(env, method, strref)
@@ -1923,7 +1935,8 @@ func callStringMethodAndAssign(env *Env, obj *ObjectRef, method string, assign f
 
 // NewStackTraceElementFromObject creates a new StackTraceElement with its contents
 // set from the values provided in stackTraceElement's methods.
-func NewStackTraceElementFromObject(env *Env, stackTraceElement *ObjectRef) (*StackTraceElement, error) {
+func NewStackTraceElementFromObject(env *Env, stackTraceElement *ObjectRef) (*StackTraceElement,
+	error) {
 
 	if stackTraceElement.IsNil() {
 		return nil, nil
@@ -2094,7 +2107,8 @@ var (
 	DefaultExceptionHandler = DescribeExceptionHandler
 
 	// DescribeExceptionHandler calls the JNI exceptionDescribe function.
-	DescribeExceptionHandler ExceptionHandler = ExceptionHandlerFunc(func(env *Env, exception *ObjectRef) error {
+	DescribeExceptionHandler ExceptionHandler = ExceptionHandlerFunc(func(env *Env,
+		exception *ObjectRef) error {
 		exceptionDescribe(env.jniEnv)
 		exceptionClear(env.jniEnv)
 		return errors.New("Java exception occured. check stderr")
@@ -2103,7 +2117,8 @@ var (
 	// ThrowableToStringExceptionHandler calls ToString on the exception and returns an error
 	// with the returned value as its Error message.
 	// If exception is nil or the toString() call fails, a generic default error is returned.
-	ThrowableToStringExceptionHandler ExceptionHandler = ExceptionHandlerFunc(func(env *Env, exception *ObjectRef) error {
+	ThrowableToStringExceptionHandler ExceptionHandler = ExceptionHandlerFunc(func(env *Env,
+		exception *ObjectRef) error {
 		exceptionClear(env.jniEnv)
 		if exception.IsNil() {
 			return errThrowableConvertFail
@@ -2121,7 +2136,8 @@ var (
 	// ThrowableErrorExceptionHandler populates a new ThrowableError with the values of exception.
 	// If exception is nil, the getClass().getName(), or the toString call fails, a generic default
 	// error is returned.
-	ThrowableErrorExceptionHandler ExceptionHandler = ExceptionHandlerFunc(func(env *Env, exception *ObjectRef) error {
+	ThrowableErrorExceptionHandler ExceptionHandler = ExceptionHandlerFunc(func(env *Env,
+		exception *ObjectRef) error {
 		exceptionClear(env.jniEnv)
 		if exception.IsNil() {
 			return errThrowableConvertFail
